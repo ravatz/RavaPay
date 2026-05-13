@@ -9,8 +9,11 @@
 
 [![Website](https://img.shields.io/badge/Website-ravapay.biz.id-blue)](https://ravapay.biz.id)
 [![Telegram](https://img.shields.io/badge/Telegram-@RavaPayBot-blue)](https://t.me/RavaPayBot)
-[![Status](https://img.shields.io/badge/Status-Active-success)]()
-[![Uptime](https://img.shields.io/badge/Uptime-99.9%25-success)]()
+<br/>
+[![API Status](https://img.shields.io/uptimerobot/status/m803062190-f62349fffaae470837b92a9c?label=API)](https://stats.uptimerobot.com/0y8nSx5FN2)
+[![API Uptime](https://img.shields.io/uptimerobot/ratio/30/m803062190-f62349fffaae470837b92a9c?label=API%20uptime%2030d)](https://stats.uptimerobot.com/0y8nSx5FN2)
+[![Dashboard Status](https://img.shields.io/uptimerobot/status/m803062182-82f4aa15991eb4a440d58c6d?label=Dashboard)](https://stats.uptimerobot.com/0y8nSx5FN2)
+[![Dashboard Uptime](https://img.shields.io/uptimerobot/ratio/30/m803062182-82f4aa15991eb4a440d58c6d?label=Dashboard%20uptime%2030d)](https://stats.uptimerobot.com/0y8nSx5FN2)
 
 </div>
 
