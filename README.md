@@ -321,7 +321,7 @@ Daftar akun secara gratis di [ravapay.biz.id/register](https://ravapay.biz.id) l
 #### 3️⃣ Langganan Paket (Subscription)
 
 Langganan dikelola sepenuhnya oleh sistem Bot Telegram kami. Anda bisa melakukannya dengan dua cara:
-- **Via Dashboard**: Buka halaman **Pricing** dan pilih paket yang sesuai. Anda akan diarahkan ke Telegram Bot ([@RavaPayBot](https://t.me/RavaPayBot)) via _deep link_.
+- **Via Dashboard**: Buka halaman **Pricing** dan pilih paket yang sesuai. Jika Anda belum login, sistem akan mengarahkan ke halaman login/register dulu. Setelah login, klik paket akan membuka [@RavaPayBot](https://t.me/RavaPayBot) via _deep link_ dengan paket yang sudah terpilih otomatis.
 - **Via Bot Langsung**: Buka [@RavaPayBot](https://t.me/RavaPayBot) dan ikuti instruksi pembelian paket di dalam bot.
 - Selesaikan pembayaran invoice QRIS yang diberikan bot, dan langganan Anda akan otomatis aktif!
 
