@@ -74,13 +74,13 @@ sequenceDiagram
     Note over Merchant,Customer: 3️⃣ Notifikasi Real-time
     GoPay->>RavaPay: Payment Success Notification
     RavaPay->>RavaPay: Verify & Process Payment
-    RavaPay->>Merchant: 🔔 POST Webhook Callback<br/>{status: "SUCCESS", amount: 50000}
+    RavaPay->>Merchant: 🔔 POST Webhook Callback<br/>{event: "payment.success", amount: 50000}
     Merchant-->>RavaPay: 200 OK (Webhook Received)
 
     Note over Merchant,Customer: 4️⃣ Update Dashboard
     RavaPay->>RavaPay: Update Transaction Status
     Merchant->>RavaPay: GET /gopay/transactions/:id
-    RavaPay-->>Merchant: {status: "SUCCESS", paid_at: "..."}
+    RavaPay-->>Merchant: {status: "success", payment_reference: "..."}
 ```
 
 ---
@@ -97,22 +97,23 @@ Sistem Anda me-request QRIS dengan nominal tertentu melalui API. RavaPay akan me
 curl -X POST https://api.ravapay.biz.id/gopay/create \
   -H "x-api-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"amount": 50000, "remarks": "Order #1234"}'
+  -d '{"amount": 50000, "description": "Order #1234"}'
 ```
 
-**Response:**
+**Response:** `201 Created`
 
 ```json
 {
   "success": true,
+  "message": "Payment QRIS created successfully",
   "data": {
-    "transaction_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "transaction_id": "TRX-FD8492591A2B4C6D",
     "amount": 50000,
-    "status": "PENDING",
-    "qr_string": "00020101021126...",
-    "qr_url": "https://api.midtrans.com/qr/...",
-    "created_at": "2026-05-01T10:15:00Z",
-    "expires_at": "2026-05-01T10:30:00Z"
+    "status": "pending",
+    "qr_string": "00020101021226...",
+    "qr_url": "https://api.ravapay.biz.id/qr/TRX-FD8492591A2B4C6D",
+    "created_at": "2026-05-01T10:15:00.000Z",
+    "expired_at": "2026-05-01T10:30:00.000Z"
   }
 }
 ```
@@ -156,65 +157,93 @@ sequenceDiagram
 
 ```json
 {
-  "event": "transaction.completed",
-  "timestamp": "2026-05-01T10:17:43Z",
+  "event": "payment.success",
   "data": {
-    "transaction_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "transaction_id": "TRX-FD8492591A2B4C6D",
+    "status": "success",
     "amount": 50000,
-    "status": "SUCCESS",
-    "remarks": "Order #1234"
-  }
+    "description": "Order #1234",
+    "customer_name": null,
+    "customer_phone": null,
+    "customer_email": null,
+    "qr_string": "00020101021226...",
+    "qr_url": "https://api.ravapay.biz.id/qr/TRX-FD8492591A2B4C6D",
+    "created_at": "2026-05-01T10:15:00.000Z",
+    "expired_at": "2026-05-01T10:30:00.000Z",
+    "updated_at": "2026-05-01T10:17:43.000Z"
+  },
+  "timestamp": "2026-05-01T10:17:43.000Z"
 }
 ```
+
+> 📌 **Event types:** `payment.success` · `payment.expired` · `payment.cancel`
+> Webhook dipicu setiap kali status transaksi berubah ke salah satu state di atas.
 
 #### 🔐 Verifikasi Webhook Signature
 
 Setiap webhook dilengkapi **HMAC-SHA256 signature** pada header `X-RavaPay-Signature` untuk keamanan. Gunakan **Webhook Secret** Anda (dapatkan di Dashboard) untuk memverifikasi keaslian pengirim:
 
 ```javascript
-// Node.js (Express) Example
+// Node.js (Express) Example — gunakan raw body middleware
 const crypto = require('crypto');
+const express = require('express');
+const app = express();
 
-app.post('/webhook/ravapay', (req, res) => {
-  // Ambil signature dari header
-  const signature = req.headers['x-ravapay-signature'];
-  
-  // Pastikan Anda menggunakan raw body dari request
-  const rawBody = JSON.stringify(req.body); 
-  const webhookSecret = 'YOUR_WEBHOOK_SECRET';
+// PENTING: signature divalidasi atas RAW BODY, bukan JSON yang sudah di-parse.
+// Pakai express.raw() agar req.body berupa Buffer yang belum tersentuh.
+app.post(
+  '/webhook/ravapay',
+  express.raw({ type: 'application/json' }),
+  (req, res) => {
+    const signature = req.headers['x-ravapay-signature'];
+    const rawBody = req.body; // Buffer
+    const webhookSecret = process.env.RAVAPAY_WEBHOOK_SECRET;
 
-  const expectedSignature = crypto
-    .createHmac('sha256', webhookSecret)
-    .update(rawBody)
-    .digest('hex');
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(rawBody)
+      .digest('hex');
 
-  // Verifikasi signature
-  if (`sha256=${expectedSignature}` !== signature) {
-    return res.status(401).json({ error: 'Invalid signature' });
+    // Bandingkan dengan timing-safe comparison
+    const sigBuf = Buffer.from(signature || '', 'hex');
+    const expBuf = Buffer.from(expectedSignature, 'hex');
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+
+    // Parse body setelah signature valid
+    const payload = JSON.parse(rawBody.toString('utf8'));
+
+    switch (payload.event) {
+      case 'payment.success':
+        console.log(`Pembayaran berhasil: ${payload.data.transaction_id}`);
+        // TODO: Update order di database Anda
+        break;
+      case 'payment.expired':
+        console.log(`Transaksi expired: ${payload.data.transaction_id}`);
+        // TODO: Release stock, tandai order sebagai kadaluarsa
+        break;
+      case 'payment.cancel':
+        console.log(`Transaksi dibatalkan: ${payload.data.transaction_id}`);
+        break;
+    }
+
+    res.status(200).json({ success: true });
   }
-  
-  // Proses event
-  if (req.body.event === 'transaction.completed') {
-    const { transaction_id, status } = req.body.data;
-    console.log(`Payment success: ${transaction_id}`);
-    // TODO: Update status order di database Anda
-  }
-
-  res.status(200).json({ success: true });
-});
+);
 ```
 
 ```php
-// PHP Example
 <?php
+// PHP Example — baca raw body dari stdin
 $payload = file_get_contents('php://input');
-$signature = $_SERVER['HTTP_X_RAVAPAY_SIGNATURE'];
-$webhookSecret = 'YOUR_WEBHOOK_SECRET';
+$signature = $_SERVER['HTTP_X_RAVAPAY_SIGNATURE'] ?? '';
+$webhookSecret = getenv('RAVAPAY_WEBHOOK_SECRET');
 
-// Generate signature pembanding
-$expectedSignature = 'sha256=' . hash_hmac('sha256', $payload, $webhookSecret);
+// Generate signature pembanding (raw hex, tanpa prefix)
+$expectedSignature = hash_hmac('sha256', $payload, $webhookSecret);
 
-// Verifikasi signature
+// Verifikasi signature dengan timing-safe comparison
 if (!hash_equals($expectedSignature, $signature)) {
     http_response_code(401);
     exit('Invalid signature');
@@ -222,13 +251,19 @@ if (!hash_equals($expectedSignature, $signature)) {
 
 $data = json_decode($payload, true);
 
-// Proses event
-if ($data['event'] === 'transaction.completed') {
-    $transactionId = $data['data']['transaction_id'];
-    // TODO: Update status order di database Anda
+switch ($data['event']) {
+    case 'payment.success':
+        $transactionId = $data['data']['transaction_id'];
+        // TODO: Update status order di database Anda
+        break;
+    case 'payment.expired':
+        // TODO: Release stock, tandai order sebagai kadaluarsa
+        break;
+    case 'payment.cancel':
+        // TODO: Handle transaksi yang dibatalkan
+        break;
 }
 
-// Berikan respon 200 OK
 http_response_code(200);
 echo json_encode(['success' => true]);
 ?>
@@ -241,7 +276,7 @@ Anda juga bisa memverifikasi status secara manual via API:
 **Request:**
 
 ```bash
-curl https://api.ravapay.biz.id/gopay/transactions/a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
+curl https://api.ravapay.biz.id/gopay/transactions/TRX-FD8492591A2B4C6D \
   -H "x-api-key: YOUR_API_KEY"
 ```
 
@@ -250,14 +285,21 @@ curl https://api.ravapay.biz.id/gopay/transactions/a1b2c3d4-e5f6-7890-abcd-ef123
 ```json
 {
   "success": true,
+  "message": "Get transaction successful",
   "data": {
-    "transaction_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "transaction_id": "TRX-FD8492591A2B4C6D",
     "amount": 50000,
-    "status": "SUCCESS",
-    "paid_at": "2026-05-01T10:17:43Z"
+    "status": "success",
+    "payment_reference": "f8a7b3c2-d4e5-...",
+    "customer_name": null,
+    "created_at": "2026-05-01T10:15:00.000Z",
+    "expired_at": "2026-05-01T10:30:00.000Z"
   }
 }
 ```
+
+> 📌 Status valid: `pending` · `success` · `expired` · `cancel`
+> `payment_reference` bernilai `null` selama transaksi belum terbayar.
 
 ---
 
