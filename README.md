@@ -7,7 +7,7 @@
 
 **Platform otomasi pembayaran QRIS dengan API yang powerful untuk merchant Indonesia**
 
-[![Website](https://img.shields.io/badge/Website-ravapay.biz.id-blue)](https://ravapay.biz.id)
+[![Website](https://img.shields.io/badge/Website-ravapay.web.id-blue)](https://ravapay.web.id)
 [![Telegram](https://img.shields.io/badge/Telegram-@RavaPayBot-blue)](https://t.me/RavaPayBot)
 <br/>
 [![API Status](https://img.shields.io/uptimerobot/status/m803062190-f62349fffaae470837b92a9c?label=API)](https://stats.uptimerobot.com/0y8nSx5FN2)
