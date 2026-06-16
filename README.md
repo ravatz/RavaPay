@@ -5,7 +5,7 @@
 
 # RavaPay
 
-**Platform otomasi pembayaran QRIS dengan API yang powerful untuk merchant Indonesia**
+**Platform otomasi pembayaran QRIS multi-provider dengan API yang powerful untuk merchant Indonesia**
 
 [![Website](https://img.shields.io/badge/Website-ravapay.site-blue)](https://ravapay.site)
 [![Telegram](https://img.shields.io/badge/Telegram-@RavaPayBot-blue)](https://t.me/RavaPayBot)
@@ -19,7 +19,7 @@
 
 ---
 
-RavaPay adalah platform yang memudahkan merchant untuk menerima pembayaran GoPay secara otomatis melalui QRIS. Dengan RavaPay, Anda dapat:
+RavaPay adalah platform yang memudahkan merchant menerima pembayaran QRIS otomatis melalui satu REST API. Satu integrasi bisa dipakai untuk beberapa provider seperti GoPay dan BRI. Dengan RavaPay, Anda dapat:
 
 - Generate QRIS dinamis dengan nominal custom
 - Cek status transaksi secara real-time
@@ -47,7 +47,7 @@ Dashboard intuitif untuk monitoring semua transaksi, statistik pendapatan, dan p
 
 ### Keamanan & Keandalan
 
-Data terenkripsi dengan standar industri. Kredensial GoPay Anda disimpan dengan enkripsi penuh — tidak pernah tersimpan dalam bentuk plaintext.
+Data terenkripsi dengan standar industri. Kredensial provider Anda disimpan dengan enkripsi penuh — tidak pernah tersimpan dalam bentuk plaintext.
 
 ---
 
@@ -57,30 +57,30 @@ Data terenkripsi dengan standar industri. Kredensial GoPay Anda disimpan dengan 
 sequenceDiagram
     participant Merchant as 🏪 Merchant/Your System
     participant RavaPay as ⚡ RavaPay API
-    participant GoPay as 💳 GoPay Server
+    participant Provider as 🏦 Provider QRIS
     participant Customer as 👤 Customer
 
     Note over Merchant,Customer: 1️⃣ Generate QRIS
-    Merchant->>RavaPay: POST /gopay/create<br/>{amount: 50000}
-    RavaPay->>GoPay: Request QRIS via merchant account
-    GoPay-->>RavaPay: Return QRIS data & transaction ID
-    RavaPay-->>Merchant: {transaction_id, qr_string, qr_url}
+    Merchant->>RavaPay: POST /create<br/>{provider: "gopay", amount: 50000}
+    RavaPay->>Provider: Request QRIS via provider account
+    Provider-->>RavaPay: Return QRIS data & transaction ID
+    RavaPay-->>Merchant: {provider, transaction_id, qr_string, qr_url}
 
     Note over Merchant,Customer: 2️⃣ Customer Melakukan Pembayaran
     Merchant->>Customer: Tampilkan QRIS ke customer
-    Customer->>GoPay: Scan QRIS & Bayar via GoPay App
-    GoPay-->>Customer: ✅ Pembayaran Berhasil
+    Customer->>Provider: Scan QRIS & bayar via aplikasi pembayaran
+    Provider-->>Customer: ✅ Pembayaran Berhasil
 
     Note over Merchant,Customer: 3️⃣ Notifikasi Real-time
-    GoPay->>RavaPay: Payment Success Notification
+    Provider->>RavaPay: Payment Notification / Mutation Polling
     RavaPay->>RavaPay: Verify & Process Payment
-    RavaPay->>Merchant: 🔔 POST Webhook Callback<br/>{event: "payment.success", amount: 50000}
+    RavaPay->>Merchant: 🔔 POST Webhook Callback<br/>{event: "payment.success", provider, amount: 50000}
     Merchant-->>RavaPay: 200 OK (Webhook Received)
 
     Note over Merchant,Customer: 4️⃣ Update Dashboard
     RavaPay->>RavaPay: Update Transaction Status
-    Merchant->>RavaPay: GET /gopay/transactions/:id
-    RavaPay-->>Merchant: {status: "success", payment_reference: "..."}
+    Merchant->>RavaPay: GET /transactions/:id
+    RavaPay-->>Merchant: {provider, status: "success", payment_reference: "..."}
 ```
 
 ---
@@ -89,15 +89,15 @@ sequenceDiagram
 
 #### 1️⃣ Generate QRIS
 
-Sistem Anda me-request QRIS dengan nominal tertentu melalui API. RavaPay akan meneruskan request ke server GoPay dan mengembalikan QRIS beserta Transaction ID.
+Sistem Anda me-request QRIS dengan nominal tertentu melalui API RavaPay. Pilih provider lewat field `provider` (`gopay` atau `bri`), lalu RavaPay akan meneruskan request ke provider terkait dan mengembalikan QRIS beserta Transaction ID.
 
 **Request:**
 
 ```bash
-curl -X POST https://api.ravapay.site/gopay/create \
+curl -X POST https://api.ravapay.site/create \
   -H "x-api-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"amount": 50000, "description": "Order #1234"}'
+  -d '{"provider": "gopay", "amount": 50000, "description": "Order #1234"}'
 ```
 
 **Response:** `201 Created`
@@ -107,6 +107,7 @@ curl -X POST https://api.ravapay.site/gopay/create \
   "success": true,
   "message": "Payment QRIS created successfully",
   "data": {
+    "provider": "gopay",
     "transaction_id": "TRX-FD8492591A2B4C6D",
     "amount": 50000,
     "status": "pending",
@@ -120,32 +121,32 @@ curl -X POST https://api.ravapay.site/gopay/create \
 
 #### 2️⃣ Customer Bayar
 
-Customer melakukan scan QRIS (via URL dari `qr_url` atau `qr_string`) menggunakan aplikasi GoPay dan menyelesaikan pembayaran.
+Customer melakukan scan QRIS (via URL dari `qr_url` atau `qr_string`) menggunakan aplikasi pembayaran yang mendukung QRIS, lalu menyelesaikan pembayaran.
 
 #### 3️⃣ Webhook Callback (Real-time)
 
-Segera setelah GoPay menyatakan pembayaran berhasil, RavaPay akan mengirim Webhook langsung ke server Anda.
+Segera setelah pembayaran terkonfirmasi oleh provider, RavaPay akan mengirim Webhook langsung ke server Anda.
 
 **Diagram Webhook Flow**
 ```mermaid
 sequenceDiagram
     participant Customer as 👤 Customer
-    participant GoPay as 💳 GoPay App
+    participant Provider as 🏦 Provider QRIS
     participant RavaPay as ⚡ RavaPay API
     participant YourSystem as 🏪 Your System
     participant Dashboard as 📊 Dashboard
 
     Note over Customer,Dashboard: Customer melakukan pembayaran
-    Customer->>GoPay: 1. Scan QRIS & Input PIN
-    GoPay->>GoPay: 2. Process Payment
-    GoPay-->>Customer: 3. ✅ Payment Success
+    Customer->>Provider: 1. Scan QRIS & Input PIN
+    Provider->>Provider: 2. Process Payment
+    Provider-->>Customer: 3. ✅ Payment Success
 
     Note over Customer,Dashboard: RavaPay menerima notifikasi
-    GoPay->>RavaPay: 4. Payment Notification
+    Provider->>RavaPay: 4. Payment Notification / Mutation Polling
     RavaPay->>RavaPay: 5. Verify Payment Data
 
     Note over Customer,Dashboard: Webhook dikirim ke sistem Anda
-    RavaPay->>YourSystem: 6. 🔔 POST Webhook<br/>{event, transaction_id}
+    RavaPay->>YourSystem: 6. 🔔 POST Webhook<br/>{event, provider, transaction_id}
     YourSystem->>YourSystem: 7. Process Order/Update Status
     YourSystem-->>RavaPay: 8. 200 OK (Acknowledge)
 
@@ -160,6 +161,7 @@ sequenceDiagram
   "event": "payment.success",
   "data": {
     "transaction_id": "TRX-FD8492591A2B4C6D",
+    "provider": "gopay",
     "status": "success",
     "amount": 50000,
     "description": "Order #1234",
@@ -276,7 +278,7 @@ Anda juga bisa memverifikasi status secara manual via API:
 **Request:**
 
 ```bash
-curl https://api.ravapay.site/gopay/transactions/TRX-FD8492591A2B4C6D \
+curl https://api.ravapay.site/transactions/TRX-FD8492591A2B4C6D \
   -H "x-api-key: YOUR_API_KEY"
 ```
 
@@ -287,6 +289,7 @@ curl https://api.ravapay.site/gopay/transactions/TRX-FD8492591A2B4C6D \
   "success": true,
   "message": "Get transaction successful",
   "data": {
+    "provider": "gopay",
     "transaction_id": "TRX-FD8492591A2B4C6D",
     "amount": 50000,
     "status": "success",
@@ -313,10 +316,11 @@ Daftar akun secara gratis di [ravapay.site/register](https://ravapay.site) lalu 
 - 👤 Username
 - 🔐 Password yang kuat
 
-#### 2️⃣ Hubungkan GoPay Merchant
+#### 2️⃣ Hubungkan Provider QRIS
 
-- Di dalam dashboard, navigasikan ke menu sinkronisasi GoPay.
-- Masukkan kredensial GoPay Merchant Anda secara aman (Data dienkripsi).
+- Di dalam dashboard, navigasikan ke menu koneksi provider.
+- Hubungkan akun provider yang tersedia, seperti GoPay Merchant atau BRI Merchant.
+- Kredensial disimpan terenkripsi dan tidak pernah tersimpan dalam bentuk plaintext.
 
 #### 3️⃣ Langganan Paket (Subscription)
 
@@ -368,7 +372,7 @@ Otomatiskan penagihan layanan bulanan menggunakan sistem RavaPay yang terintegra
 
 ### 🔐 Enkripsi Kredensial
 
-Semua data sensitif termasuk kredensial GoPay disimpan menggunakan enkripsi tingkat tinggi. **Kami tidak pernah menyimpan informasi ini dalam bentuk plaintext**.
+Semua data sensitif termasuk kredensial provider disimpan menggunakan enkripsi tingkat tinggi. **Kami tidak pernah menyimpan informasi ini dalam bentuk plaintext**.
 
 ### ✍️ Webhook Signature
 
@@ -390,13 +394,13 @@ Kami menggunakan model subscription (SaaS) berbasis langganan bulanan tanpa poto
 
 Paket langganan yang sudah diaktifkan tidak dapat direfund.
 
-### 📊 Apakah ada limit transaksi GoPay?
+### 📊 Apakah ada limit transaksi provider?
 
-Tidak ada batasan dari sistem RavaPay. Limit mutasi dan pencairan sepenuhnya bergantung pada kebijakan tier akun GoPay Merchant Anda.
+Tidak ada batasan dari sistem RavaPay. Limit mutasi, settlement, dan pencairan sepenuhnya bergantung pada kebijakan tier akun provider Anda.
 
-### 📱 Apakah bisa pakai akun GoPay personal?
+### 📱 Apakah bisa pakai akun personal?
 
-Sistem RavaPay didesain khusus untuk mendukung akun **GoPay Merchant**. Pastikan Anda menggunakan nomor merchant untuk kinerja maksimal.
+Sistem RavaPay didesain untuk akun merchant/provider bisnis, seperti **GoPay Merchant** atau **BRI Merchant**. Pastikan Anda menggunakan akun merchant untuk kinerja maksimal.
 
 ---
 
