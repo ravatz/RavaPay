@@ -94,7 +94,7 @@ Sistem Anda me-request QRIS dengan nominal tertentu melalui API. RavaPay akan me
 **Request:**
 
 ```bash
-curl -X POST https://api.ravapay.biz.id/gopay/create \
+curl -X POST https://api.ravapay.site/gopay/create \
   -H "x-api-key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"amount": 50000, "description": "Order #1234"}'
@@ -111,7 +111,7 @@ curl -X POST https://api.ravapay.biz.id/gopay/create \
     "amount": 50000,
     "status": "pending",
     "qr_string": "00020101021226...",
-    "qr_url": "https://api.ravapay.biz.id/qr/TRX-FD8492591A2B4C6D",
+    "qr_url": "https://api.ravapay.site/qr/TRX-FD8492591A2B4C6D",
     "created_at": "2026-05-01T10:15:00.000Z",
     "expired_at": "2026-05-01T10:30:00.000Z"
   }
@@ -167,7 +167,7 @@ sequenceDiagram
     "customer_phone": null,
     "customer_email": null,
     "qr_string": "00020101021226...",
-    "qr_url": "https://api.ravapay.biz.id/qr/TRX-FD8492591A2B4C6D",
+    "qr_url": "https://api.ravapay.site/qr/TRX-FD8492591A2B4C6D",
     "created_at": "2026-05-01T10:15:00.000Z",
     "expired_at": "2026-05-01T10:30:00.000Z",
     "updated_at": "2026-05-01T10:17:43.000Z"
@@ -276,7 +276,7 @@ Anda juga bisa memverifikasi status secara manual via API:
 **Request:**
 
 ```bash
-curl https://api.ravapay.biz.id/gopay/transactions/TRX-FD8492591A2B4C6D \
+curl https://api.ravapay.site/gopay/transactions/TRX-FD8492591A2B4C6D \
   -H "x-api-key: YOUR_API_KEY"
 ```
 
@@ -307,7 +307,7 @@ curl https://api.ravapay.biz.id/gopay/transactions/TRX-FD8492591A2B4C6D \
 
 #### 1️⃣ Registrasi & Login
 
-Daftar akun secara gratis di [ravapay.biz.id/register](https://ravapay.biz.id) lalu login ke Dashboard.
+Daftar akun secara gratis di [ravapay.site/register](https://ravapay.site) lalu login ke Dashboard.
 **Persyaratan:**
 
 - 👤 Username
@@ -333,7 +333,7 @@ Langganan dikelola sepenuhnya oleh sistem Bot Telegram kami. Anda bisa melakukan
 
 #### 5️⃣ Mulai Terima Pembayaran
 
-- Integrasikan API RavaPay ke sistem Anda mengikuti [Dokumentasi API interaktif](https://ravapay.biz.id/docs) di dashboard.
+- Integrasikan API RavaPay ke sistem Anda mengikuti [Dokumentasi API interaktif](https://ravapay.site/docs) di dashboard.
 - Pantau semua transaksi di halaman dashboard utama secara live.
 
 ---
